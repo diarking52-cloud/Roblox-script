@@ -67,10 +67,4 @@ RunService.RenderStepped:Connect(function()
 				bb.InfoLabel.Text = p.Name .. " [" .. dist .. "m]"
 			end
 		end
-	end
-end)
-
-for _, p in ipairs(Players:GetPlayers()) do
-	createESP(p)
-end
-Players.PlayerAdded:Connect(createESP)
+		end
