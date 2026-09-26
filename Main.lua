@@ -136,7 +136,7 @@ local function createESP(player)
 
         local color = getRoleColor(player)
 
-        -- Highlight (Белая/Цветная подсветка силуэта)
+        -- Highlight (Подсветка силуэта)
         local hl = char:FindFirstChild("MM2Highlight") or Instance.new("Highlight")
         hl.Name = "MM2Highlight"
         hl.Adornee = char
