@@ -1,5 +1,3 @@
-[
-    
 --[[
     NEVERLOSE.CC | MM2 Delta Edition
     Key: mrbecon99
@@ -29,7 +27,7 @@ local function addCorner(obj, r)
 end
 
 ----------------------------------------------------------------
--- ЕДИНЫЙ ScreenGui (чтобы Delta не крашилась)
+-- ЕДИНЫЙ ScreenGui
 ----------------------------------------------------------------
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "NeverloseUI"
@@ -37,7 +35,7 @@ MainGui.ResetOnSpawn = false
 MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 ----------------------------------------------------------------
--- KEY SYSTEM (внутри MainGui)
+-- KEY SYSTEM
 ----------------------------------------------------------------
 local KeyFrame = Instance.new("Frame", MainGui)
 KeyFrame.Name = "KeyFrame"
@@ -102,7 +100,7 @@ StatusLabel.BackgroundTransparency = 1
 -- MAIN SCRIPT
 ----------------------------------------------------------------
 local function LoadMainScript()
-    KeyFrame.Visible = false
+    KeyFrame:Destroy()  -- полностью удаляем окно ключа
 
     local Config = {
         Combat = {
@@ -128,9 +126,7 @@ local function LoadMainScript()
         }
     }
 
-    ------------------------------------------------------------
     -- ANTI-FLING
-    ------------------------------------------------------------
     local antiFlingConn
     local function startAntiFling()
         if antiFlingConn then return end
@@ -150,9 +146,7 @@ local function LoadMainScript()
         if antiFlingConn then antiFlingConn:Disconnect(); antiFlingConn = nil end
     end
 
-    ------------------------------------------------------------
     -- SKIN CHANGER
-    ------------------------------------------------------------
     local function applySkin(skinName)
         local char = LocalPlayer.Character
         if not char then return end
@@ -175,9 +169,7 @@ local function LoadMainScript()
         end
     end
 
-    ------------------------------------------------------------
-    -- CROSSHAIR (внутри MainGui)
-    ------------------------------------------------------------
+    -- CROSSHAIR
     local CrosshairFrame = Instance.new("Frame", MainGui)
     CrosshairFrame.Size = UDim2.new(0, 20, 0, 20)
     CrosshairFrame.Position = UDim2.new(0.5, -10, 0.5, -10)
@@ -196,9 +188,7 @@ local function LoadMainScript()
     LineH.BackgroundColor3 = ACCENT
     LineH.BorderSizePixel = 0
 
-    ------------------------------------------------------------
     -- ESP
-    ------------------------------------------------------------
     local espBoxes = {}
     local espLabels = {}
 
@@ -255,9 +245,7 @@ local function LoadMainScript()
         end
     end
 
-    ------------------------------------------------------------
     -- AIMBOT
-    ------------------------------------------------------------
     local function getClosestPlayerInFOV()
         local closest, shortest = nil, Config.Combat.AimbotFOV
         local mousePos = UserInputService:GetMouseLocation()
@@ -300,9 +288,7 @@ local function LoadMainScript()
         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), Config.Combat.AimbotSmooth)
     end
 
-    ------------------------------------------------------------
     -- RENDER
-    ------------------------------------------------------------
     RunService.RenderStepped:Connect(function()
         for _, plr in ipairs(Players:GetPlayers()) do
             local isSelf = (plr == LocalPlayer)
@@ -347,9 +333,7 @@ local function LoadMainScript()
 
     Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
 
-    ------------------------------------------------------------
     -- MAIN MENU
-    ------------------------------------------------------------
     local OpenBtn = Instance.new("TextButton", MainGui)
     OpenBtn.Size = UDim2.new(0, 48, 0, 48)
     OpenBtn.Position = UDim2.new(0.5, -24, 1, -80)
@@ -604,7 +588,10 @@ end
 
 SubmitBtn.MouseButton1Click:Connect(function()
     if KeyInput.Text == CORRECT_KEY then
-        LoadMainScript()
+        local ok, err = pcall(LoadMainScript)
+        if not ok then
+            warn("Ошибка в скрипте: " .. tostring(err))
+        end
     else
         StatusLabel.TextColor3 = RED
         StatusLabel.Text = "Invalid Key!"
