@@ -1,7 +1,6 @@
 --[[
     NEVERLOSE.CC | MM2 Delta Edition
     Key: mrbecon99
-    GUI Style: Shitaro
 ]]
 
 local Players           = game:GetService("Players")
@@ -103,10 +102,7 @@ StatusLabel.TextColor3 = RED
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 10
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.BackgroundTransparency = 1----------------------------------------------------------------
--- MAIN SCRIPT
-----------------------------------------------------------------
-local function LoadMainScript()
+StatusLabel.BackgroundTransparency = 1local function LoadMainScript()
     KeyFrame:Destroy()
 
     local Config = {
@@ -611,13 +607,10 @@ local function LoadMainScript()
         tabFrame.ScrollBarThickness = 2
         tabFrame.ScrollBarImageColor3 = TOGGLE_ON
         tabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-
         local listLayout = Instance.new("UIListLayout", tabFrame)
         listLayout.SortOrder = Enum.SortOrder.LayoutOrder
         listLayout.Padding = UDim.new(0, 6)
-
         Tabs[name] = tabFrame
-
         local btn = Instance.new("TextButton", Sidebar)
         btn.Size = UDim2.new(1, -12, 0, 34)
         btn.Position = UDim2.new(0, 6, 0, (#TabButtons) * 38 + 8)
@@ -630,7 +623,6 @@ local function LoadMainScript()
         btn.TextXAlignment = Enum.TextXAlignment.Left
         btn.AutoButtonColor = false
         addCorner(btn, 6)
-
         btn.MouseButton1Click:Connect(function()
             for tName, frame in pairs(Tabs) do frame.Visible = (tName == name) end
             for _, button in pairs(TabButtons) do
@@ -650,7 +642,6 @@ local function LoadMainScript()
         frame.BackgroundColor3 = BG_ELEMENT
         frame.BorderSizePixel = 0
         addCorner(frame, 6)
-
         local label = Instance.new("TextLabel", frame)
         label.Size = UDim2.new(0.7, 0, 1, 0)
         label.Position = UDim2.new(0, 12, 0, 0)
@@ -660,27 +651,23 @@ local function LoadMainScript()
         label.TextSize = 11
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.BackgroundTransparency = 1
-
         local switch = Instance.new("Frame", frame)
         switch.Size = UDim2.new(0, 32, 0, 16)
         switch.Position = UDim2.new(1, -44, 0.5, -8)
         switch.BackgroundColor3 = default and TOGGLE_ON or TOGGLE_OFF
         switch.BorderSizePixel = 0
         addCorner(switch, 8)
-
         local dot = Instance.new("Frame", switch)
         dot.Size = UDim2.new(0, 12, 0, 12)
         dot.Position = default and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
         dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         dot.BorderSizePixel = 0
         addCorner(dot, 6)
-
         local btn = Instance.new("TextButton", frame)
         btn.Size = UDim2.new(1, 0, 1, 0)
         btn.BackgroundTransparency = 1
         btn.Text = ""
         btn.AutoButtonColor = false
-
         local state = default
         btn.MouseButton1Click:Connect(function()
             state = not state
@@ -696,7 +683,6 @@ local function LoadMainScript()
         frame.BackgroundColor3 = BG_ELEMENT
         frame.BorderSizePixel = 0
         addCorner(frame, 6)
-
         local label = Instance.new("TextLabel", frame)
         label.Size = UDim2.new(1, -20, 0, 18)
         label.Position = UDim2.new(0, 12, 0, 4)
@@ -706,20 +692,17 @@ local function LoadMainScript()
         label.TextSize = 11
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.BackgroundTransparency = 1
-
         local bar = Instance.new("Frame", frame)
         bar.Size = UDim2.new(1, -24, 0, 6)
         bar.Position = UDim2.new(0, 12, 0, 30)
         bar.BackgroundColor3 = TOGGLE_OFF
         bar.BorderSizePixel = 0
         addCorner(bar, 3)
-
         local fill = Instance.new("Frame", bar)
         fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
         fill.BackgroundColor3 = TOGGLE_ON
         fill.BorderSizePixel = 0
         addCorner(fill, 3)
-
         local dragging = false
         bar.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
@@ -738,10 +721,10 @@ local function LoadMainScript()
         end)
     end
 
-    local GameTab   = CreateTab("GAME", "🎮")
-    local VisTab    = CreateTab("VISUALS", "👁")
-    local TargetTab = CreateTab("TARGET", "🎯")
-    local MiscTab   = CreateTab("MISC", "⚙")
+    local GameTab   = CreateTab("GAME", "G")
+    local VisTab    = CreateTab("VISUALS", "V")
+    local TargetTab = CreateTab("TARGET", "T")
+    local MiscTab   = CreateTab("MISC", "M")
 
     Tabs["GAME"].Visible = true
     TabButtons[1].TextColor3 = TEXT_MAIN
