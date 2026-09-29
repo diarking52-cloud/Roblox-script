@@ -12,13 +12,11 @@ local Camera            = workspace.CurrentCamera
 
 local CORRECT_KEY = "mrbecon99"
 
--- Цвета (в стиле Shitaro — тёмно-серый)
 local ACCENT     = Color3.fromRGB(255, 255, 255)
 local BG_MAIN    = Color3.fromRGB(22, 22, 26)
 local BG_SIDEBAR = Color3.fromRGB(16, 16, 19)
 local BG_HEADER  = Color3.fromRGB(28, 28, 32)
 local BG_ELEMENT = Color3.fromRGB(32, 32, 37)
-local BG_HOVER   = Color3.fromRGB(42, 42, 48)
 local TEXT_MAIN  = Color3.fromRGB(235, 235, 240)
 local TEXT_DIM   = Color3.fromRGB(130, 130, 140)
 local GREEN      = Color3.fromRGB(90, 220, 120)
@@ -42,18 +40,12 @@ local function addStroke(obj, color, thickness, transparency)
     s.Parent = obj
 end
 
-----------------------------------------------------------------
--- ЕДИНЫЙ ScreenGui
-----------------------------------------------------------------
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "NeverloseUI"
 MainGui.ResetOnSpawn = false
 MainGui.IgnoreGuiInset = true
 MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-----------------------------------------------------------------
--- KEY SYSTEM (стиль Shitaro)
-----------------------------------------------------------------
 local KeyFrame = Instance.new("Frame", MainGui)
 KeyFrame.Size = UDim2.new(0, 300, 0, 170)
 KeyFrame.Position = UDim2.new(0.5, -150, 0.5, -85)
@@ -111,9 +103,7 @@ StatusLabel.TextColor3 = RED
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 10
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.BackgroundTransparency = 1
-
-----------------------------------------------------------------
+StatusLabel.BackgroundTransparency = 1----------------------------------------------------------------
 -- MAIN SCRIPT
 ----------------------------------------------------------------
 local function LoadMainScript()
@@ -140,9 +130,6 @@ local function LoadMainScript()
             AntiFling        = false,
             AntiFlingMurder  = false,
             AntiFlingSheriff = false,
-            AccentR          = 255,
-            AccentG          = 255,
-            AccentB          = 255,
         },
         Movement = {
             BombJump  = false,
@@ -150,9 +137,6 @@ local function LoadMainScript()
         }
     }
 
-    ------------------------------------------------------------
-    -- РОЛИ
-    ------------------------------------------------------------
     local function getRole(plr)
         local char = plr.Character
         if not char then return "Unknown" end
@@ -179,9 +163,6 @@ local function LoadMainScript()
         return nil
     end
 
-    ------------------------------------------------------------
-    -- ANTI-FLING
-    ------------------------------------------------------------
     local antiFlingConn
     local function isTargetForAntiFling(plr)
         if not Config.Misc.AntiFling and not Config.Misc.AntiFlingMurder and not Config.Misc.AntiFlingSheriff then return false end
@@ -206,13 +187,11 @@ local function LoadMainScript()
             end
         end)
     end
+
     local function stopAntiFling()
         if antiFlingConn then antiFlingConn:Disconnect(); antiFlingConn = nil end
     end
 
-    ------------------------------------------------------------
-    -- НЕВИДИМОСТЬ
-    ------------------------------------------------------------
     local invisibleState = false
     local invisibleParts = {}
 
@@ -251,9 +230,6 @@ local function LoadMainScript()
         if invisibleState then setInvisible(true) end
     end)
 
-    ------------------------------------------------------------
-    -- SKIN CHANGER (тело)
-    ------------------------------------------------------------
     local function applySkin(skinName)
         local char = LocalPlayer.Character
         if not char then return end
@@ -276,9 +252,6 @@ local function LoadMainScript()
         end
     end
 
-    ------------------------------------------------------------
-    -- WEAPON SKIN CHANGER
-    ------------------------------------------------------------
     local weaponColors = {
         Default = nil,
         Black   = Color3.fromRGB(15, 15, 15),
@@ -299,7 +272,6 @@ local function LoadMainScript()
         if not char then return end
         local tool = char:FindFirstChildOfClass("Tool")
         if not tool then return end
-
         if color == nil then
             for part, orig in pairs(weaponOriginalColors) do
                 if part and part.Parent then
@@ -309,7 +281,6 @@ local function LoadMainScript()
             weaponOriginalColors = {}
             return
         end
-
         for _, part in ipairs(tool:GetDescendants()) do
             if part:IsA("BasePart") then
                 if not weaponOriginalColors[part] then
@@ -328,9 +299,6 @@ local function LoadMainScript()
         end
     end)
 
-    ------------------------------------------------------------
-    -- ESP
-    ------------------------------------------------------------
     local espBoxes = {}
     local espLabels = {}
 
@@ -405,12 +373,7 @@ local function LoadMainScript()
                 espLabels[plr].role.TextColor3 = color
             end)
         end
-    end
-
-    ------------------------------------------------------------
-    -- AIMBOT
-    ------------------------------------------------------------
-    local function getClosestPlayerInFOV()
+    end    local function getClosestPlayerInFOV()
         local closest, shortest = nil, Config.Combat.AimbotFOV
         local mousePos = UserInputService:GetMouseLocation()
         for _, plr in ipairs(Players:GetPlayers()) do
@@ -452,9 +415,6 @@ local function LoadMainScript()
         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), Config.Combat.AimbotSmooth)
     end
 
-    ------------------------------------------------------------
-    -- SHOOT MURDER
-    ------------------------------------------------------------
     local function shootMurder()
         local murder = getMurderPlayer()
         if not murder or not murder.Character then return end
@@ -466,9 +426,6 @@ local function LoadMainScript()
         if tool then pcall(function() tool:Activate() end) end
     end
 
-    ------------------------------------------------------------
-    -- RENDER
-    ------------------------------------------------------------
     RunService.RenderStepped:Connect(function()
         for _, plr in ipairs(Players:GetPlayers()) do
             local isSelf = (plr == LocalPlayer)
@@ -516,9 +473,6 @@ local function LoadMainScript()
 
     Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
 
-    ------------------------------------------------------------
-    -- SHOOT MURDER BUTTON
-    ------------------------------------------------------------
     local ShootMurderBtn = Instance.new("TextButton", MainGui)
     ShootMurderBtn.Size = UDim2.new(0, 90, 0, 44)
     ShootMurderBtn.Position = UDim2.new(0.5, -45, 0, 100)
@@ -552,9 +506,6 @@ local function LoadMainScript()
         if not movedSM then shootMurder() end
     end)
 
-    ------------------------------------------------------------
-    -- КНОПКА NL
-    ------------------------------------------------------------
     local OpenBtn = Instance.new("TextButton", MainGui)
     OpenBtn.Size = UDim2.new(0, 48, 0, 48)
     OpenBtn.Position = UDim2.new(0.5, -24, 1, -80)
@@ -584,9 +535,6 @@ local function LoadMainScript()
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingBtn = false end
     end)
 
-    ------------------------------------------------------------
-    -- ГЛАВНОЕ МЕНЮ (Shitaro style)
-    ------------------------------------------------------------
     local MainFrame = Instance.new("Frame", MainGui)
     MainFrame.Size = UDim2.new(0, 520, 0, 360)
     MainFrame.Position = UDim2.new(0.5, -260, 0.5, -180)
@@ -614,7 +562,6 @@ local function LoadMainScript()
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingUI = false end
     end)
 
-    -- Верхняя полоса с названием
     local TopBar = Instance.new("Frame", MainFrame)
     TopBar.Size = UDim2.new(1, 0, 0, 40)
     TopBar.BackgroundColor3 = BG_HEADER
@@ -635,7 +582,7 @@ local function LoadMainScript()
     CloseBtn.Position = UDim2.new(1, -34, 0.5, -13)
     CloseBtn.BackgroundColor3 = BG_ELEMENT
     CloseBtn.BorderSizePixel = 0
-    CloseBtn.Text = "×"
+    CloseBtn.Text = "x"
     CloseBtn.TextColor3 = TEXT_DIM
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 18
@@ -643,14 +590,12 @@ local function LoadMainScript()
     addCorner(CloseBtn, 6)
     CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
-    -- Сайдбар
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 130, 1, -40)
     Sidebar.Position = UDim2.new(0, 0, 0, 40)
     Sidebar.BackgroundColor3 = BG_SIDEBAR
     Sidebar.BorderSizePixel = 0
 
-    -- Контент
     local ContentArea = Instance.new("Frame", MainFrame)
     ContentArea.Size = UDim2.new(1, -145, 1, -55)
     ContentArea.Position = UDim2.new(0, 140, 0, 52)
@@ -699,7 +644,6 @@ local function LoadMainScript()
         return tabFrame
     end
 
-    -- Тогл в стиле Shitaro (маленький круглый)
     local function CreateToggle(parentTab, text, default, callback)
         local frame = Instance.new("Frame", parentTab)
         frame.Size = UDim2.new(1, -10, 0, 32)
@@ -756,4 +700,230 @@ local function LoadMainScript()
         local label = Instance.new("TextLabel", frame)
         label.Size = UDim2.new(1, -20, 0, 18)
         label.Position = UDim2.new(0, 12, 0, 4)
-        label.Text = text .. ": " ..
+        label.Text = text .. ": " .. default
+        label.TextColor3 = TEXT_MAIN
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.BackgroundTransparency = 1
+
+        local bar = Instance.new("Frame", frame)
+        bar.Size = UDim2.new(1, -24, 0, 6)
+        bar.Position = UDim2.new(0, 12, 0, 30)
+        bar.BackgroundColor3 = TOGGLE_OFF
+        bar.BorderSizePixel = 0
+        addCorner(bar, 3)
+
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+        fill.BackgroundColor3 = TOGGLE_ON
+        fill.BorderSizePixel = 0
+        addCorner(fill, 3)
+
+        local dragging = false
+        bar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+                local val = math.floor(min + (max - min) * rel)
+                fill.Size = UDim2.new(rel, 0, 1, 0)
+                label.Text = text .. ": " .. val
+                callback(val)
+            end
+        end)
+    end
+
+    local GameTab   = CreateTab("GAME", "🎮")
+    local VisTab    = CreateTab("VISUALS", "👁")
+    local TargetTab = CreateTab("TARGET", "🎯")
+    local MiscTab   = CreateTab("MISC", "⚙")
+
+    Tabs["GAME"].Visible = true
+    TabButtons[1].TextColor3 = TEXT_MAIN
+    TabButtons[1].BackgroundColor3 = BG_ELEMENT
+
+    CreateToggle(GameTab, "Shoot Murder", Config.Combat.ShootMurder, function(v) Config.Combat.ShootMurder = v end)
+    CreateToggle(GameTab, "Invisibility", Config.Visuals.Invisible, function(v)
+        Config.Visuals.Invisible = v
+        setInvisible(v)
+    end)
+    CreateToggle(GameTab, "Anti-Fling", Config.Misc.AntiFling, function(v)
+        Config.Misc.AntiFling = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFlingMurder and not Config.Misc.AntiFlingSheriff then stopAntiFling() end
+        end
+    end)
+    CreateToggle(GameTab, "Anti-Fling Murder", Config.Misc.AntiFlingMurder, function(v)
+        Config.Misc.AntiFlingMurder = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFling and not Config.Misc.AntiFlingSheriff then stopAntiFling() end
+        end
+    end)
+    CreateToggle(GameTab, "Anti-Fling Sheriff", Config.Misc.AntiFlingSheriff, function(v)
+        Config.Misc.AntiFlingSheriff = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFling and not Config.Misc.AntiFlingMurder then stopAntiFling() end
+        end
+    end)
+
+    CreateToggle(VisTab, "ESP Box", Config.Visuals.ESP, function(v) Config.Visuals.ESP = v end)
+    CreateToggle(VisTab, "ESP Box (Self)", Config.Visuals.ESP_Self, function(v) Config.Visuals.ESP_Self = v end)
+    CreateToggle(VisTab, "Skin Changer (Body)", Config.Visuals.SkinChanger, function(v)
+        Config.Visuals.SkinChanger = v
+        if v then applySkin("Red") else applySkin("Default") end
+    end)
+    CreateToggle(VisTab, "Weapon Skin (Red)", false, function(v)
+        if v then
+            Config.Visuals.WeaponSkin = "Red"
+            applyWeaponSkin("Red")
+        else
+            Config.Visuals.WeaponSkin = "Default"
+            applyWeaponSkin("Default")
+        end
+    end)
+
+    CreateToggle(TargetTab, "Aimbot", Config.Combat.Aimbot, function(v) Config.Combat.Aimbot = v end)
+    CreateSlider(TargetTab, "Aimbot FOV", 10, 500, Config.Combat.AimbotFOV, function(v) Config.Combat.AimbotFOV = v end)
+    CreateSlider(TargetTab, "Aimbot Smooth", 1, 100, 15, function(v) Config.Combat.AimbotSmooth = v / 100 end)
+    CreateToggle(TargetTab, "Prediction", Config.Combat.Prediction, function(v) Config.Combat.Prediction = v end)
+    CreateToggle(TargetTab, "Force Shoot", Config.Combat.ForceShoot, function(v) Config.Combat.ForceShoot = v end)
+    CreateToggle(TargetTab, "Auto Shoot", Config.Combat.AutoShoot, function(v) Config.Combat.AutoShoot = v end)
+
+    CreateToggle(MiscTab, "Bomb Jump", Config.Movement.BombJump, function(v) Config.Movement.BombJump = v end)
+    CreateSlider(MiscTab, "Jump Power", 20, 150, Config.Movement.JumpPower, function(v) Config.Movement.JumpPower = v end)
+end
+
+SubmitBtn.MouseButton1Click:Connect(function()
+    if KeyInput.Text == CORRECT_KEY then
+        local ok, err = pcall(LoadMainScript)
+        if not ok then
+            warn("Ошибка в скрипте: " .. tostring(err))
+        end
+    else
+        StatusLabel.TextColor3 = RED
+        StatusLabel.Text = "Invalid Key!"
+    end
+end)     local function CreateSlider(parentTab, text, min, max, default, callback)
+        local frame = Instance.new("Frame", parentTab)
+        frame.Size = UDim2.new(1, -10, 0, 44)
+        frame.BackgroundColor3 = BG_ELEMENT
+        frame.BorderSizePixel = 0
+        addCorner(frame, 6)
+
+        local label = Instance.new("TextLabel", frame)
+        label.Size = UDim2.new(1, -20, 0, 18)
+        label.Position = UDim2.new(0, 12, 0, 4)
+        label.Text = text .. ": " .. default
+        label.TextColor3 = TEXT_MAIN
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.BackgroundTransparency = 1
+
+        local bar = Instance.new("Frame", frame)
+        bar.Size = UDim2.new(1, -24, 0, 6)
+        bar.Position = UDim2.new(0, 12, 0, 30)
+        bar.BackgroundColor3 = TOGGLE_OFF
+        bar.BorderSizePixel = 0
+        addCorner(bar, 3)
+
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+        fill.BackgroundColor3 = TOGGLE_ON
+        fill.BorderSizePixel = 0
+        addCorner(fill, 3)
+
+        local dragging = false
+        bar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+                local val = math.floor(min + (max - min) * rel)
+                fill.Size = UDim2.new(rel, 0, 1, 0)
+                label.Text = text .. ": " .. val
+                callback(val)
+            end
+        end)
+    end
+
+    local GameTab   = CreateTab("GAME", "G")
+    local VisTab    = CreateTab("VISUALS", "V")
+    local TargetTab = CreateTab("TARGET", "T")
+    local MiscTab   = CreateTab("MISC", "M")
+
+    Tabs["GAME"].Visible = true
+    TabButtons[1].TextColor3 = TEXT_MAIN
+    TabButtons[1].BackgroundColor3 = BG_ELEMENT
+
+    CreateToggle(GameTab, "Shoot Murder", Config.Combat.ShootMurder, function(v) Config.Combat.ShootMurder = v end)
+    CreateToggle(GameTab, "Invisibility", Config.Visuals.Invisible, function(v)
+        Config.Visuals.Invisible = v
+        setInvisible(v)
+    end)
+    CreateToggle(GameTab, "Anti-Fling", Config.Misc.AntiFling, function(v)
+        Config.Misc.AntiFling = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFlingMurder and not Config.Misc.AntiFlingSheriff then stopAntiFling() end
+        end
+    end)
+    CreateToggle(GameTab, "Anti-Fling Murder", Config.Misc.AntiFlingMurder, function(v)
+        Config.Misc.AntiFlingMurder = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFling and not Config.Misc.AntiFlingSheriff then stopAntiFling() end
+        end
+    end)
+    CreateToggle(GameTab, "Anti-Fling Sheriff", Config.Misc.AntiFlingSheriff, function(v)
+        Config.Misc.AntiFlingSheriff = v
+        if v then startAntiFling() else
+            if not Config.Misc.AntiFling and not Config.Misc.AntiFlingMurder then stopAntiFling() end
+        end
+    end)
+
+    CreateToggle(VisTab, "ESP Box", Config.Visuals.ESP, function(v) Config.Visuals.ESP = v end)
+    CreateToggle(VisTab, "ESP Box (Self)", Config.Visuals.ESP_Self, function(v) Config.Visuals.ESP_Self = v end)
+    CreateToggle(VisTab, "Skin Changer (Body)", Config.Visuals.SkinChanger, function(v)
+        Config.Visuals.SkinChanger = v
+        if v then applySkin("Red") else applySkin("Default") end
+    end)
+    CreateToggle(VisTab, "Weapon Skin (Red)", false, function(v)
+        if v then
+            Config.Visuals.WeaponSkin = "Red"
+            applyWeaponSkin("Red")
+        else
+            Config.Visuals.WeaponSkin = "Default"
+            applyWeaponSkin("Default")
+        end
+    end)
+
+    CreateToggle(TargetTab, "Aimbot", Config.Combat.Aimbot, function(v) Config.Combat.Aimbot = v end)
+    CreateSlider(TargetTab, "Aimbot FOV", 10, 500, Config.Combat.AimbotFOV, function(v) Config.Combat.AimbotFOV = v end)
+    CreateSlider(TargetTab, "Aimbot Smooth", 1, 100, 15, function(v) Config.Combat.AimbotSmooth = v / 100 end)
+    CreateToggle(TargetTab, "Prediction", Config.Combat.Prediction, function(v) Config.Combat.Prediction = v end)
+    CreateToggle(TargetTab, "Force Shoot", Config.Combat.ForceShoot, function(v) Config.Combat.ForceShoot = v end)
+    CreateToggle(TargetTab, "Auto Shoot", Config.Combat.AutoShoot, function(v) Config.Combat.AutoShoot = v end)
+
+    CreateToggle(MiscTab, "Bomb Jump", Config.Movement.BombJump, function(v) Config.Movement.BombJump = v end)
+    CreateSlider(MiscTab, "Jump Power", 20, 150, Config.Movement.JumpPower, function(v) Config.Movement.JumpPower = v end)
+end
+
+SubmitBtn.MouseButton1Click:Connect(function()
+    if KeyInput.Text == CORRECT_KEY then
+        local ok, err = pcall(LoadMainScript)
+        if not ok then
+            warn("Ошибка в скрипте: " .. tostring(err))
+        end
+    else
+        StatusLabel.TextColor3 = RED
+        StatusLabel.Text = "Invalid Key!"
+    end
+end)
