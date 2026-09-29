@@ -1,7 +1,7 @@
 --[[
     NEVERLOSE.CC | MM2 Mobile Edition
     Key: mrbecon99
-    + Wallbang
+    + Prediction, Anti-Fling, Visual Skin Changer
 ]]
 
 local Players           = game:GetService("Players")
@@ -104,20 +104,90 @@ local function LoadMainScript()
             Aimbot       = false,
             AimbotFOV    = 120,
             AimbotSmooth = 0.15,
+            SilentAim    = false,
+            Prediction   = false,
             ForceShoot   = false,
             AutoShoot    = false,
             Wallbang     = false,
         },
         Visuals = {
-            ESP       = false,
-            ESP_Self  = false,
-            Crosshair = false,
+            ESP          = false,
+            ESP_Self     = false,
+            Crosshair    = false,
+            SkinChanger  = false,
+            SkinName     = "Default",
+        },
+        Misc = {
+            AntiFling = false,
         },
         Movement = {
             BombJump  = false,
             JumpPower = 55,
         }
     }
+
+    ------------------------------------------------------------
+    -- ANTI-FLING
+    ------------------------------------------------------------
+    local antiFlingConnection
+    local function startAntiFling()
+        if antiFlingConnection then return end
+        antiFlingConnection = RunService.Stepped:Connect(function()
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    for _, part in ipairs(plr.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name == "HumanoidRootPart" then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    local function stopAntiFling()
+        if antiFlingConnection then
+            antiFlingConnection:Disconnect()
+            antiFlingConnection = nil
+        end
+    end
+
+    ------------------------------------------------------------
+    -- VISUAL SKIN CHANGER
+    ------------------------------------------------------------
+    local function applySkin(skinName)
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+
+        -- Визуально меняем тело и конечности на выбранный цвет
+        local colors = {
+            Default = {Color3.fromRGB(255, 204, 153), Color3.fromRGB(0, 0, 0)},
+            Red     = {Color3.fromRGB(200, 30, 30), Color3.fromRGB(50, 0, 0)},
+            Blue    = {Color3.fromRGB(30, 100, 255), Color3.fromRGB(0, 0, 80)},
+            Green   = {Color3.fromRGB(30, 200, 60), Color3.fromRGB(0, 60, 20)},
+            Purple  = {Color3.fromRGB(150, 30, 220), Color3.fromRGB(40, 0, 70)},
+            Gold    = {Color3.fromRGB(255, 200, 30), Color3.fromRGB(100, 70, 0)},
+        }
+        local c = colors[skinName] or colors.Default
+
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("BasePart") then
+                if part.Name == "Head" then
+                    part.Color = c[1]
+                else
+                    part.Color = c[2]
+                end
+            elseif part:IsA("Accessory") then
+                local handle = part:FindFirstChildWhichIsA("BasePart")
+                if handle then
+                    handle.Color = c[1]
+                end
+            end
+        end
+    end
 
     ------------------------------------------------------------
     -- CROSSHAIR
@@ -153,7 +223,6 @@ local function LoadMainScript()
 
     local function createESP(plr)
         if not plr.Character then return end
-
         local box = Instance.new("BoxHandleAdornment")
         box.Name = "NeverloseBox"
         box.Adornee = plr.Character
@@ -189,23 +258,15 @@ local function LoadMainScript()
     end
 
     local function removeESP(plr)
-        if espBoxes[plr] then
-            espBoxes[plr]:Destroy()
-            espBoxes[plr] = nil
-        end
-        if espLabels[plr] then
-            espLabels[plr].Parent:Destroy()
-            espLabels[plr] = nil
-        end
+        if espBoxes[plr] then espBoxes[plr]:Destroy(); espBoxes[plr] = nil end
+        if espLabels[plr] then espLabels[plr].Parent:Destroy(); espLabels[plr] = nil end
     end
 
     local function updateESP(plr, isSelf)
         if not espBoxes[plr] or not plr.Character then return end
         local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
-
         espBoxes[plr].Color3 = isSelf and GREEN or ACCENT
-
         local myChar = LocalPlayer.Character
         if myChar and myChar:FindFirstChild("HumanoidRootPart") and espLabels[plr] then
             local dist = math.floor((myChar.HumanoidRootPart.Position - hrp.Position).Magnitude)
@@ -214,7 +275,7 @@ local function LoadMainScript()
     end
 
     ------------------------------------------------------------
-    -- AIMBOT
+    -- AIMBOT + PREDICTION + SILENT AIM
     ------------------------------------------------------------
     local function getClosestPlayerInFOV()
         local closest, shortest = nil, Config.Combat.AimbotFOV
@@ -238,37 +299,61 @@ local function LoadMainScript()
         return closest
     end
 
+    -- Предикция: предугадывает позицию цели на основе её скорости
+    local function getPredictedPosition(target)
+        if not target or not target.Character then return nil end
+        local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+        local head = target.Character:FindFirstChild("Head")
+        if not hrp or not head then return nil end
+
+        local predictedPos = head.Position
+        if Config.Combat.Prediction then
+            local velocity = hrp.Velocity
+            local distance = (Camera.CFrame.Position - head.Position).Magnitude
+            -- Время полёта пули (условно 0.1 сек на 100 studs)
+            local travelTime = distance / 1500
+            predictedPos = head.Position + (velocity * travelTime)
+        end
+        return predictedPos
+    end
+
+    -- Silent Aim через хук Raycast (если экзекьютор поддерживает)
+    local silentAimHooked = false
+    local function setupSilentAim()
+        if silentAimHooked then return end
+        if not getrawmetatable or not hookmetamethod then
+            return -- экзекьютор не поддерживает
+        end
+        pcall(function()
+            local mt = getrawmetatable(game)
+            local oldNamecall = mt.__namecall
+            setreadonly(mt, false)
+            mt.__namecall = newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                if Config.Combat.SilentAim and (method == "Raycast" or method == "FindPartOnRay") then
+                    local target = getClosestPlayerInFOV()
+                    if target then
+                        local predicted = getPredictedPosition(target)
+                        if predicted then
+                            return oldNamecall(self, predicted, ...)
+                        end
+                    end
+                end
+                return oldNamecall(self, ...)
+            end)
+            setreadonly(mt, true)
+            silentAimHooked = true
+        end)
+    end
+
     local function runAimbot()
         if not Config.Combat.Aimbot then return end
         local target = getClosestPlayerInFOV()
         if not target then return end
-        local head = target.Character and target.Character:FindFirstChild("Head")
-        if not head then return end
-        local newCFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+        local predicted = getPredictedPosition(target)
+        if not predicted then return end
+        local newCFrame = CFrame.new(Camera.CFrame.Position, predicted)
         Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Config.Combat.AimbotSmooth)
-    end
-
-    ------------------------------------------------------------
-    -- WALLBANG (стрельба без проверки видимости)
-    ------------------------------------------------------------
-    -- Wallbang работает так:
-    -- 1. Aimbot наводит камеру на врага (даже за стеной)
-    -- 2. ForceShoot автоматически стреляет
-    -- 3. Если у оружия есть пробитие — попадание пройдёт
-    -- Клиентский скрипт не может "отключить" серверную проверку стен,
-    -- но может помочь стрелять точно в цель за укрытием.
-    local function runWallbang()
-        if not Config.Combat.Wallbang then return end
-        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if not tool then return end
-        -- Наводимся на ближайшего и стреляем
-        local target = getClosestPlayerInFOV()
-        if target and target.Character then
-            local head = target.Character:FindFirstChild("Head")
-            if head then
-                pcall(function() tool:Activate() end)
-            end
-        end
     end
 
     ------------------------------------------------------------
@@ -278,7 +363,6 @@ local function LoadMainScript()
         for _, plr in ipairs(Players:GetPlayers()) do
             local isSelf = (plr == LocalPlayer)
             local show = (isSelf and Config.Visuals.ESP_Self) or (not isSelf and Config.Visuals.ESP)
-
             if show and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
                 if not espBoxes[plr] or not espBoxes[plr].Parent then
                     createESP(plr)
@@ -288,21 +372,17 @@ local function LoadMainScript()
                 removeESP(plr)
             end
         end
-
         CrosshairFrame.Visible = Config.Visuals.Crosshair
         runAimbot()
     end)
 
-    -- Force / Auto / Wallbang Shoot
+    -- Force / Auto / Wallbang / Silent
     task.spawn(function()
         while task.wait(0.1) do
             if Config.Combat.ForceShoot or Config.Combat.AutoShoot or Config.Combat.Wallbang then
                 local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    pcall(function() tool:Activate() end)
-                end
+                if tool then pcall(function() tool:Activate() end) end
             end
-            runWallbang()
         end
     end)
 
@@ -325,9 +405,7 @@ local function LoadMainScript()
         end
     end)
 
-    Players.PlayerRemoving:Connect(function(plr)
-        removeESP(plr)
-    end)
+    Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
 
     ------------------------------------------------------------
     -- MAIN GUI
@@ -352,9 +430,7 @@ local function LoadMainScript()
     local draggingBtn, dragStartBtn, startPosBtn
     OpenBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingBtn = true
-            dragStartBtn = input.Position
-            startPosBtn = OpenBtn.Position
+            draggingBtn = true; dragStartBtn = input.Position; startPosBtn = OpenBtn.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
@@ -364,30 +440,24 @@ local function LoadMainScript()
         end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingBtn = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingBtn = false end
     end)
 
     local MainFrame = Instance.new("Frame", MainGui)
-    MainFrame.Size = UDim2.new(0, 440, 0, 300)
-    MainFrame.Position = UDim2.new(0.5, -220, 0.5, -150)
+    MainFrame.Size = UDim2.new(0, 460, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -230, 0.5, -160)
     MainFrame.BackgroundColor3 = BG_MAIN
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Visible = true
     addCorner(MainFrame, 12)
 
-    OpenBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = not MainFrame.Visible
-    end)
+    OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
     local draggingUI, dragStartUI, startPosUI
     MainFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingUI = true
-            dragStartUI = input.Position
-            startPosUI = MainFrame.Position
+            draggingUI = true; dragStartUI = input.Position; startPosUI = MainFrame.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
@@ -397,9 +467,7 @@ local function LoadMainScript()
         end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingUI = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingUI = false end
     end)
 
     local Header = Instance.new("Frame", MainFrame)
@@ -428,9 +496,7 @@ local function LoadMainScript()
     CloseBtn.TextSize = 16
     CloseBtn.AutoButtonColor = false
     addCorner(CloseBtn, 6)
-    CloseBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = false
-    end)
+    CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 110, 1, -40)
@@ -452,11 +518,9 @@ local function LoadMainScript()
         tabFrame.Visible = false
         tabFrame.ScrollBarThickness = 2
         tabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-
         local listLayout = Instance.new("UIListLayout", tabFrame)
         listLayout.SortOrder = Enum.SortOrder.LayoutOrder
         listLayout.Padding = UDim.new(0, 5)
-
         Tabs[name] = tabFrame
 
         local btn = Instance.new("TextButton", Sidebar)
@@ -481,7 +545,6 @@ local function LoadMainScript()
             btn.TextColor3 = ACCENT
             btn.BackgroundColor3 = BG_ELEMENT
         end)
-
         table.insert(TabButtons, btn)
         return tabFrame
     end
@@ -556,14 +619,10 @@ local function LoadMainScript()
 
         local dragging = false
         bar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-            end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
         end)
         UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
         end)
         UserInputService.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
@@ -576,34 +635,92 @@ local function LoadMainScript()
         end)
     end
 
+    local function CreateDropdown(parentTab, text, options, default, callback)
+        local frame = Instance.new("Frame", parentTab)
+        frame.Size = UDim2.new(1, -10, 0, 30)
+        frame.BackgroundColor3 = BG_ELEMENT
+        frame.BorderSizePixel = 0
+        addCorner(frame, 6)
+
+        local label = Instance.new("TextLabel", frame)
+        label.Size = UDim2.new(0.4, 0, 1, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
+        label.Text = text
+        label.TextColor3 = TEXT_MAIN
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 10
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.BackgroundTransparency = 1
+
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(0.5, -6, 0, 20)
+        btn.Position = UDim2.new(0.5, -2, 0.5, -10)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 35, 50)
+        btn.BorderSizePixel = 0
+        btn.Text = default
+        btn.TextColor3 = ACCENT
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 9
+        btn.AutoButtonColor = false
+        addCorner(btn, 5)
+
+        local idx = 1
+        for i, v in ipairs(options) do if v == default then idx = i end end
+
+        btn.MouseButton1Click:Connect(function()
+            idx = idx + 1
+            if idx > #options then idx = 1 end
+            btn.Text = options[idx]
+            callback(options[idx])
+        end)
+    end
+
+    -- Tabs
     local CombatTab   = CreateTab("COMBAT")
     local VisualsTab  = CreateTab("VISUALS")
+    local MiscTab     = CreateTab("MISC")
     local MovementTab = CreateTab("MOVEMENT")
 
     Tabs["COMBAT"].Visible = true
     TabButtons[1].TextColor3 = ACCENT
     TabButtons[1].BackgroundColor3 = BG_ELEMENT
 
+    -- Combat
     CreateToggle(CombatTab, "Aimbot", Config.Combat.Aimbot, function(v) Config.Combat.Aimbot = v end)
     CreateSlider(CombatTab, "Aimbot FOV", 10, 500, Config.Combat.AimbotFOV, function(v) Config.Combat.AimbotFOV = v end)
     CreateSlider(CombatTab, "Aimbot Smooth", 1, 100, 15, function(v) Config.Combat.AimbotSmooth = v / 100 end)
+    CreateToggle(CombatTab, "Prediction (предугадывание)", Config.Combat.Prediction, function(v) Config.Combat.Prediction = v end)
+    CreateToggle(CombatTab, "Silent Aim (требует экзекьютор)", Config.Combat.SilentAim, function(v)
+        Config.Combat.SilentAim = v
+        if v then setupSilentAim() end
+    end)
     CreateToggle(CombatTab, "Force Shoot", Config.Combat.ForceShoot, function(v) Config.Combat.ForceShoot = v end)
     CreateToggle(CombatTab, "Auto Shoot", Config.Combat.AutoShoot, function(v) Config.Combat.AutoShoot = v end)
-    CreateToggle(CombatTab, "Wallbang (нужен Aimbot)", Config.Combat.Wallbang, function(v) Config.Combat.Wallbang = v end)
+    CreateToggle(CombatTab, "Wallbang", Config.Combat.Wallbang, function(v) Config.Combat.Wallbang = v end)
 
+    -- Visuals
     CreateToggle(VisualsTab, "ESP Box", Config.Visuals.ESP, function(v) Config.Visuals.ESP = v end)
     CreateToggle(VisualsTab, "ESP Box (Self)", Config.Visuals.ESP_Self, function(v) Config.Visuals.ESP_Self = v end)
     CreateToggle(VisualsTab, "Show Crosshair", Config.Visuals.Crosshair, function(v) Config.Visuals.Crosshair = v end)
+    CreateToggle(VisualsTab, "Skin Changer (визуал)", Config.Visuals.SkinChanger, function(v)
+        Config.Visuals.SkinChanger = v
+        if v then applySkin(Config.Visuals.SkinName) end
+    end)
+    CreateDropdown(VisualsTab, "Skin", {"Default", "Red", "Blue", "Green", "Purple", "Gold"}, "Default", function(v)
+        Config.Visuals.SkinName = v
+        if Config.Visuals.SkinChanger then applySkin(v) end
+    end)
 
+    -- Misc
+    CreateToggle(MiscTab, "Anti-Fling", Config.Misc.AntiFling, function(v)
+        Config.Misc.AntiFling = v
+        if v then startAntiFling() else stopAntiFling() end
+    end)
+
+    -- Movement
     CreateToggle(MovementTab, "Bomb Jump (нужна бомба)", Config.Movement.BombJump, function(v) Config.Movement.BombJump = v end)
     CreateSlider(MovementTab, "Jump Power", 20, 150, Config.Movement.JumpPower, function(v) Config.Movement.JumpPower = v end)
 end
 
 SubmitBtn.MouseButton1Click:Connect(function()
-    if KeyInput.Text == CORRECT_KEY then
-        LoadMainScript()
-    else
-        StatusLabel.TextColor3 = RED
-        StatusLabel.Text = "Invalid Key!"
-    end
-end) 
+    if KeyInput.Text == CORRECT
