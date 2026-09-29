@@ -19,6 +19,7 @@ local TEXT_MAIN  = Color3.fromRGB(230, 235, 245)
 local TEXT_DIM   = Color3.fromRGB(140, 155, 175)
 local GREEN      = Color3.fromRGB(0, 255, 120)
 local RED        = Color3.fromRGB(255, 70, 70)
+local ORANGE     = Color3.fromRGB(255, 140, 0)
 
 local function addCorner(obj, r)
     local c = Instance.new("UICorner")
@@ -100,7 +101,7 @@ StatusLabel.BackgroundTransparency = 1
 -- MAIN SCRIPT
 ----------------------------------------------------------------
 local function LoadMainScript()
-    KeyFrame:Destroy()  -- полностью удаляем окно ключа
+    KeyFrame:Destroy()
 
     local Config = {
         Combat = {
@@ -108,17 +109,22 @@ local function LoadMainScript()
             AimbotFOV    = 120,
             AimbotSmooth = 0.15,
             Prediction   = false,
+            SilentAim    = false,
             ForceShoot   = false,
             AutoShoot    = false,
+            ShootMurder  = false,
         },
         Visuals = {
             ESP          = false,
             ESP_Self     = false,
             SkinChanger  = false,
             SkinName     = "Default",
+            Invisible    = false,
         },
         Misc = {
-            AntiFling = false,
+            AntiFling       = false,
+            AntiFlingMurder = false,
+            AntiFlingSheriff = false,
         },
         Movement = {
             BombJump  = false,
@@ -126,13 +132,69 @@ local function LoadMainScript()
         }
     }
 
-    -- ANTI-FLING
+    ------------------------------------------------------------
+    -- ОПРЕДЕЛЕНИЕ РОЛИ ИГРОКА (Murder / Sheriff / Innocent)
+    ------------------------------------------------------------
+    local function getRole(plr)
+        local char = plr.Character
+        if not char then return "Unknown" end
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") then
+                local n = string.lower(tool.Name)
+                if n:find("knife") then return "Murder" end
+                if n:find("gun") or n:find("revolver") or n:find("pistol") then return "Sheriff" end
+            end
+        end
+        return "Innocent"
+    end
+
+    local function getMurderPlayer()
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                for _, tool in ipairs(plr.Character:GetChildren()) do
+                    if tool:IsA("Tool") and string.lower(tool.Name):find("knife") then
+                        return plr
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function getSheriffPlayer()
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                for _, tool in ipairs(plr.Character:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        local n = string.lower(tool.Name)
+                        if n:find("gun") or n:find("revolver") or n:find("pistol") then
+                            return plr
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    ------------------------------------------------------------
+    -- ANTI-FLING (общий + для Murder + для Sheriff)
+    ------------------------------------------------------------
     local antiFlingConn
+    local function isTargetForAntiFling(plr)
+        if not Config.Misc.AntiFling and not Config.Misc.AntiFlingMurder and not Config.Misc.AntiFlingSheriff then return false end
+        local role = getRole(plr)
+        if Config.Misc.AntiFling and role ~= "Unknown" then return true end
+        if Config.Misc.AntiFlingMurder and role == "Murder" then return true end
+        if Config.Misc.AntiFlingSheriff and role == "Sheriff" then return true end
+        return false
+    end
+
     local function startAntiFling()
         if antiFlingConn then return end
         antiFlingConn = RunService.Stepped:Connect(function()
             for _, plr in ipairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and plr.Character then
+                if plr ~= LocalPlayer and plr.Character and isTargetForAntiFling(plr) then
                     for _, part in ipairs(plr.Character:GetDescendants()) do
                         if part:IsA("BasePart") then
                             pcall(function() part.CanCollide = false end)
@@ -146,7 +208,51 @@ local function LoadMainScript()
         if antiFlingConn then antiFlingConn:Disconnect(); antiFlingConn = nil end
     end
 
+    ------------------------------------------------------------
+    -- НЕВИДИМОСТЬ (визуальная)
+    ------------------------------------------------------------
+    local invisibleState = false
+    local invisibleParts = {}
+
+    local function setInvisible(state)
+        invisibleState = state
+        local char = LocalPlayer.Character
+        if not char then return end
+        if state then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Decal") then
+                    invisibleParts[part] = {
+                        Transparency = part.Transparency,
+                        LocalTransparencyModifier = part.LocalTransparencyModifier,
+                    }
+                    pcall(function()
+                        part.Transparency = 1
+                        part.LocalTransparencyModifier = 1
+                    end)
+                end
+            end
+        else
+            for part, data in pairs(invisibleParts) do
+                if part and part.Parent then
+                    pcall(function()
+                        part.Transparency = data.Transparency
+                        part.LocalTransparencyModifier = data.LocalTransparencyModifier
+                    end)
+                end
+            end
+            invisibleParts = {}
+        end
+    end
+
+    -- Автоматически применять невидимость при респавне
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if invisibleState then setInvisible(true) end
+    end)
+
+    ------------------------------------------------------------
     -- SKIN CHANGER
+    ------------------------------------------------------------
     local function applySkin(skinName)
         local char = LocalPlayer.Character
         if not char then return end
@@ -169,7 +275,9 @@ local function LoadMainScript()
         end
     end
 
+    ------------------------------------------------------------
     -- CROSSHAIR
+    ------------------------------------------------------------
     local CrosshairFrame = Instance.new("Frame", MainGui)
     CrosshairFrame.Size = UDim2.new(0, 20, 0, 20)
     CrosshairFrame.Position = UDim2.new(0.5, -10, 0.5, -10)
@@ -188,7 +296,9 @@ local function LoadMainScript()
     LineH.BackgroundColor3 = ACCENT
     LineH.BorderSizePixel = 0
 
+    ------------------------------------------------------------
     -- ESP
+    ------------------------------------------------------------
     local espBoxes = {}
     local espLabels = {}
 
@@ -207,7 +317,7 @@ local function LoadMainScript()
         local label = Instance.new("BillboardGui")
         label.Name = "NeverloseLabel"
         label.Adornee = plr.Character
-        label.Size = UDim2.new(0, 100, 0, 20)
+        label.Size = UDim2.new(0, 130, 0, 40)
         label.StudsOffset = Vector3.new(0, 3.5, 0)
         label.AlwaysOnTop = true
         label.LightInfluence = 0
@@ -215,7 +325,8 @@ local function LoadMainScript()
         label.Parent = plr.Character
 
         local text = Instance.new("TextLabel", label)
-        text.Size = UDim2.new(1, 0, 1, 0)
+        text.Size = UDim2.new(1, 0, 0.5, 0)
+        text.Position = UDim2.new(0, 0, 0, 0)
         text.BackgroundTransparency = 1
         text.TextColor3 = Color3.fromRGB(255, 255, 255)
         text.TextStrokeTransparency = 0
@@ -224,28 +335,53 @@ local function LoadMainScript()
         text.TextSize = 12
         text.Text = "0 studs"
 
+        local roleLabel = Instance.new("TextLabel", label)
+        roleLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        roleLabel.Position = UDim2.new(0, 0, 0.5, 0)
+        roleLabel.BackgroundTransparency = 1
+        roleLabel.TextColor3 = ACCENT
+        roleLabel.TextStrokeTransparency = 0
+        roleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        roleLabel.Font = Enum.Font.GothamBold
+        roleLabel.TextSize = 11
+        roleLabel.Text = "Innocent"
+
         espBoxes[plr] = box
-        espLabels[plr] = text
+        espLabels[plr] = {dist = text, role = roleLabel}
     end
 
     local function removeESP(plr)
         if espBoxes[plr] then pcall(function() espBoxes[plr]:Destroy() end); espBoxes[plr] = nil end
-        if espLabels[plr] then pcall(function() espLabels[plr].Parent:Destroy() end); espLabels[plr] = nil end
+        if espLabels[plr] then pcall(function() espLabels[plr].dist.Parent:Destroy() end); espLabels[plr] = nil end
     end
 
     local function updateESP(plr, isSelf)
         if not espBoxes[plr] or not plr.Character then return end
         local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
-        pcall(function() espBoxes[plr].Color3 = isSelf and GREEN or ACCENT end)
+
+        local role = getRole(plr)
+        local color = ACCENT
+        if role == "Murder" then color = RED
+        elseif role == "Sheriff" then color = ORANGE
+        elseif isSelf then color = GREEN end
+
+        pcall(function() espBoxes[plr].Color3 = color end)
+
         local myChar = LocalPlayer.Character
         if myChar and myChar:FindFirstChild("HumanoidRootPart") and espLabels[plr] then
             local dist = math.floor((myChar.HumanoidRootPart.Position - hrp.Position).Magnitude)
-            pcall(function() espLabels[plr].Text = dist .. " studs" end)
+            pcall(function()
+                espLabels[plr].dist.Text = dist .. " studs"
+                espLabels[plr].role.Text = role
+                espLabels[plr].role.TextColor3 = color
+            end)
         end
     end
 
+    ------------------------------------------------------------
     -- AIMBOT
+    ------------------------------------------------------------
     local function getClosestPlayerInFOV()
         local closest, shortest = nil, Config.Combat.AimbotFOV
         local mousePos = UserInputService:GetMouseLocation()
@@ -288,7 +424,63 @@ local function LoadMainScript()
         Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), Config.Combat.AimbotSmooth)
     end
 
+    -- Silent Aim: пробуем хук, если не работает — камера "залипает" на цель
+    local silentAimHooked = false
+    local function trySetupSilentAim()
+        if silentAimHooked then return end
+        if not (getrawmetatable and hookmetamethod and newcclosure) then return end
+        pcall(function()
+            local mt = getrawmetatable(game)
+            local oldNamecall = mt.__namecall
+            setreadonly(mt, false)
+            mt.__namecall = newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                if Config.Combat.SilentAim and (method == "Raycast" or method == "FindPartOnRay") then
+                    local target = getClosestPlayerInFOV()
+                    if target then
+                        local pos = getPredictedPosition(target)
+                        if pos then
+                            return oldNamecall(self, pos, ...)
+                        end
+                    end
+                end
+                return oldNamecall(self, ...)
+            end)
+            setreadonly(mt, true)
+            silentAimHooked = true
+        end)
+    end
+
+    local function runSilentAimFallback()
+        if not Config.Combat.SilentAim then return end
+        if silentAimHooked then return end
+        local target = getClosestPlayerInFOV()
+        if not target then return end
+        local pos = getPredictedPosition(target)
+        if not pos then return end
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, pos)
+    end
+
+    ------------------------------------------------------------
+    -- SHOOT MURDER (отдельная кнопка)
+    ------------------------------------------------------------
+    local function shootMurder()
+        local murder = getMurderPlayer()
+        if not murder or not murder.Character then return end
+        local head = murder.Character:FindFirstChild("Head")
+        if not head then return end
+        -- Наводим камеру
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+        -- Стреляем
+        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            pcall(function() tool:Activate() end)
+        end
+    end
+
+    ------------------------------------------------------------
     -- RENDER
+    ------------------------------------------------------------
     RunService.RenderStepped:Connect(function()
         for _, plr in ipairs(Players:GetPlayers()) do
             local isSelf = (plr == LocalPlayer)
@@ -302,6 +494,7 @@ local function LoadMainScript()
         end
         CrosshairFrame.Visible = false
         runAimbot()
+        runSilentAimFallback()
     end)
 
     -- Force / Auto Shoot
@@ -310,6 +503,15 @@ local function LoadMainScript()
             if Config.Combat.ForceShoot or Config.Combat.AutoShoot then
                 local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
                 if tool then pcall(function() tool:Activate() end) end
+            end
+        end
+    end)
+
+    -- Auto Shoot Murder (если включено)
+    task.spawn(function()
+        while task.wait(0.15) do
+            if Config.Combat.ShootMurder then
+                shootMurder()
             end
         end
     end)
@@ -333,7 +535,52 @@ local function LoadMainScript()
 
     Players.PlayerRemoving:Connect(function(plr) removeESP(plr) end)
 
+    ------------------------------------------------------------
+    -- SHOOT MURDER BUTTON (draggable)
+    ------------------------------------------------------------
+    local ShootMurderBtn = Instance.new("TextButton", MainGui)
+    ShootMurderBtn.Size = UDim2.new(0, 90, 0, 44)
+    ShootMurderBtn.Position = UDim2.new(0.5, -45, 0, 100)
+    ShootMurderBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+    ShootMurderBtn.BorderSizePixel = 0
+    ShootMurderBtn.Text = "SHOOT\nMURDER"
+    ShootMurderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ShootMurderBtn.Font = Enum.Font.GothamBold
+    ShootMurderBtn.TextSize = 11
+    ShootMurderBtn.AutoButtonColor = false
+    addCorner(ShootMurderBtn, 10)
+
+    local draggingSM, dragStartSM, startPosSM, movedSM
+    ShootMurderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSM = true
+            movedSM = false
+            dragStartSM = input.Position
+            startPosSM = ShootMurderBtn.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingSM and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStartSM
+            if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then movedSM = true end
+            ShootMurderBtn.Position = UDim2.new(startPosSM.X.Scale, startPosSM.X.Offset + delta.X, startPosSM.Y.Scale, startPosSM.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSM = false
+        end
+    end)
+
+    ShootMurderBtn.MouseButton1Click:Connect(function()
+        if not movedSM then
+            shootMurder()
+        end
+    end)
+
+    ------------------------------------------------------------
     -- MAIN MENU
+    ------------------------------------------------------------
     local OpenBtn = Instance.new("TextButton", MainGui)
     OpenBtn.Size = UDim2.new(0, 48, 0, 48)
     OpenBtn.Position = UDim2.new(0.5, -24, 1, -80)
@@ -363,8 +610,8 @@ local function LoadMainScript()
     end)
 
     local MainFrame = Instance.new("Frame", MainGui)
-    MainFrame.Size = UDim2.new(0, 460, 0, 320)
-    MainFrame.Position = UDim2.new(0.5, -230, 0.5, -160)
+    MainFrame.Size = UDim2.new(0, 460, 0, 340)
+    MainFrame.Position = UDim2.new(0.5, -230, 0.5, -170)
     MainFrame.BackgroundColor3 = BG_MAIN
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
@@ -488,112 +735,4 @@ local function LoadMainScript()
         local btn = Instance.new("TextButton", frame)
         btn.Size = UDim2.new(0, 36, 0, 18)
         btn.Position = UDim2.new(1, -46, 0.5, -9)
-        btn.BackgroundColor3 = default and ACCENT or Color3.fromRGB(35, 45, 60)
-        btn.Text = default and "ON" or "OFF"
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 9
-        btn.BorderSizePixel = 0
-        btn.AutoButtonColor = false
-        addCorner(btn, 9)
-
-        local state = default
-        btn.MouseButton1Click:Connect(function()
-            state = not state
-            btn.BackgroundColor3 = state and ACCENT or Color3.fromRGB(35, 45, 60)
-            btn.Text = state and "ON" or "OFF"
-            callback(state)
-        end)
-    end
-
-    local function CreateSlider(parentTab, text, min, max, default, callback)
-        local frame = Instance.new("Frame", parentTab)
-        frame.Size = UDim2.new(1, -10, 0, 42)
-        frame.BackgroundColor3 = BG_ELEMENT
-        frame.BorderSizePixel = 0
-        addCorner(frame, 6)
-
-        local label = Instance.new("TextLabel", frame)
-        label.Size = UDim2.new(1, -20, 0, 18)
-        label.Position = UDim2.new(0, 12, 0, 4)
-        label.Text = text .. ": " .. default
-        label.TextColor3 = TEXT_MAIN
-        label.Font = Enum.Font.Gotham
-        label.TextSize = 10
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.BackgroundTransparency = 1
-
-        local bar = Instance.new("Frame", frame)
-        bar.Size = UDim2.new(1, -24, 0, 6)
-        bar.Position = UDim2.new(0, 12, 0, 28)
-        bar.BackgroundColor3 = Color3.fromRGB(25, 35, 50)
-        bar.BorderSizePixel = 0
-        addCorner(bar, 3)
-
-        local fill = Instance.new("Frame", bar)
-        fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-        fill.BackgroundColor3 = ACCENT
-        fill.BorderSizePixel = 0
-        addCorner(fill, 3)
-
-        local dragging = false
-        bar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true end
-        end)
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-        end)
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local rel = math.clamp((input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-                local val = math.floor(min + (max - min) * rel)
-                fill.Size = UDim2.new(rel, 0, 1, 0)
-                label.Text = text .. ": " .. val
-                callback(val)
-            end
-        end)
-    end
-
-    local CombatTab   = CreateTab("COMBAT")
-    local VisualsTab  = CreateTab("VISUALS")
-    local MiscTab     = CreateTab("MISC")
-    local MovementTab = CreateTab("MOVEMENT")
-
-    Tabs["COMBAT"].Visible = true
-    TabButtons[1].TextColor3 = ACCENT
-    TabButtons[1].BackgroundColor3 = BG_ELEMENT
-
-    CreateToggle(CombatTab, "Aimbot", Config.Combat.Aimbot, function(v) Config.Combat.Aimbot = v end)
-    CreateSlider(CombatTab, "Aimbot FOV", 10, 500, Config.Combat.AimbotFOV, function(v) Config.Combat.AimbotFOV = v end)
-    CreateSlider(CombatTab, "Aimbot Smooth", 1, 100, 15, function(v) Config.Combat.AimbotSmooth = v / 100 end)
-    CreateToggle(CombatTab, "Prediction", Config.Combat.Prediction, function(v) Config.Combat.Prediction = v end)
-    CreateToggle(CombatTab, "Force Shoot", Config.Combat.ForceShoot, function(v) Config.Combat.ForceShoot = v end)
-    CreateToggle(CombatTab, "Auto Shoot", Config.Combat.AutoShoot, function(v) Config.Combat.AutoShoot = v end)
-
-    CreateToggle(VisualsTab, "ESP Box", Config.Visuals.ESP, function(v) Config.Visuals.ESP = v end)
-    CreateToggle(VisualsTab, "ESP Box (Self)", Config.Visuals.ESP_Self, function(v) Config.Visuals.ESP_Self = v end)
-    CreateToggle(VisualsTab, "Skin Changer", Config.Visuals.SkinChanger, function(v)
-        Config.Visuals.SkinChanger = v
-        if v then applySkin(Config.Visuals.SkinName) end
-    end)
-
-    CreateToggle(MiscTab, "Anti-Fling", Config.Misc.AntiFling, function(v)
-        Config.Misc.AntiFling = v
-        if v then startAntiFling() else stopAntiFling() end
-    end)
-
-    CreateToggle(MovementTab, "Bomb Jump", Config.Movement.BombJump, function(v) Config.Movement.BombJump = v end)
-    CreateSlider(MovementTab, "Jump Power", 20, 150, Config.Movement.JumpPower, function(v) Config.Movement.JumpPower = v end)
-end
-
-SubmitBtn.MouseButton1Click:Connect(function()
-    if KeyInput.Text == CORRECT_KEY then
-        local ok, err = pcall(LoadMainScript)
-        if not ok then
-            warn("Ошибка в скрипте: " .. tostring(err))
-        end
-    else
-        StatusLabel.TextColor3 = RED
-        StatusLabel.Text = "Invalid Key!"
-    end
-end)
+        btn.BackgroundColor3 = default and
