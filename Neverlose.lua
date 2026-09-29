@@ -1,6 +1,7 @@
 --[[
     NEVERLOSE.CC | MM2 Delta Edition
     Key: mrbecon99
+    GUI Style: Shitaro
 ]]
 
 local Players           = game:GetService("Players")
